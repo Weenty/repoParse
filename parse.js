@@ -16,23 +16,21 @@ async function addUser(repo) {
     return item.name === name
   })) {
     struct.push({ name: name, url: url, repo: repo })
+    let last = struct[struct.length - 1]
     fs.writeFileSync('struct.json', JSON.stringify(struct));
-    for (let i = 0; i < struct[struct.length - 1].repo.length; i++) {
-      if (struct[struct.length - 1].repo[i].collabs.length == 1) {
+    for (let i = 0; i < last.repo.length; i++) {
+      if (last.repo[i].collabs.length < 2 || last.repo[i].collabs == undefined || last.repo[i].collabs.length == undefined) {
+        console.log('continue')
         continue
       }
-      try {
-        for (let j = 1; j < struct[struct.length - 1].repo[i].collabs.length; j++) {
-          if (!struct.some(item => {
-            return item.name === struct[struct.length - 1].repo[i].collabs[j].name
-          })) {
-            console.log('СONTROLLER CALL REPO TO LINK ' + struct[struct.length - 1].repo[i].collabs[j][0].src)
-            await searchRep(struct[struct.length - 1].repo[i].collabs[j][0].src)
-          }
+      for (let j = 1; j < last.repo[i].collabs.length; j++) {
+
+        if (!struct.some(item => {
+          return item.name === last.repo[i].collabs[j][0].name
+        })) {
+          console.log('СONTROLLER CALL REPO TO LINK ' + last.repo[i].collabs[j][0].src)
+          await searchRep(last.repo[i].collabs[j][0].src)
         }
-      }
-      catch {
-        continue
       }
     }
   }
@@ -69,27 +67,38 @@ async function nextPage() {
 }
 
 async function giveCollabs(url) {
-  await tolink(url + '/graphs/contributors')
-  return await page.$$eval('a.text-normal', (options) =>
-    options.map((option) => [{ name: option.textContent, src: option.href }]));
+  try {
+    await tolink(url + '/graphs/contributors')
+    return await page.$$eval('a.text-normal', (options) =>
+      options.map((option) => [{ name: option.textContent, src: option.href }]));
+  }
+  catch {
+    return []
+  }
 }
 async function giveContent() {
   return await page.$$eval('h3.wb-break-all a', (options) =>
     options.map((option) => [{ name: option.textContent, src: option.href }]));
 }
 async function paintStruct(count) {
-  let i = count
-  for (; i < struct.length; i++) {
-    fs.appendFileSync("users.txt", space + struct[i].name + '\n');
-    space = space + ''.padStart(struct[i].name.length, "_");
-    for (let j = 0; j < struct[i].repo.length; j++) {
-      fs.appendFileSync("users.txt", space + struct[i].repo[j].name + '\n');
-      if (struct[i].repo[j].collabs.length !== 0) {
-        await paintStruct(count + 1)
-      }
-    }
-    space = space.slice(0, -struct[i].name)
+  if (count == struct.length) {
+    return 0
   }
+  fs.appendFileSync("users.txt", '___________________________________' + '\n');
+  fs.appendFileSync("users.txt", space + struct[count].name + '\n');
+  space = space + ''.padStart(struct[count].name.length, "  ");
+  for (let j = 0; j < struct[count].repo.length; j++) {
+    fs.appendFileSync("users.txt", space + struct[count].repo[j].name + '\n');
+    if (struct[count].repo[j].collabs.length > 1) {
+      space = space + ''.padStart(struct[count].repo[j].name.length, "  ");
+      for (let t = 1; t < struct[count].repo[j].collabs.length; t++) {
+        fs.appendFileSync("users.txt", space + struct[count].repo[j].collabs[t][0].name + '\n');
+      }
+      space = space.slice(0, -struct[count].repo[j].name.length)
+    }
+  }
+  space = space.slice(0, -struct[count].name.length)
+  paintStruct(count + 1)
 }
 async function tolink(url) {
   page = await browser.newPage();
@@ -105,16 +114,13 @@ async function searchRep(url) {
     arr.push(await giveContent())
     await nextPage()
   }
-
-  page.close()
   normal = []
   for (let j = 0; arr[0].length > j; j++) {
     let u = await giveCollabs(arr[0][j][0].src)
-    page.close()
     Collab = []
     for (let y = 0; u.length > y; y++) {
       if (u[y][0].name.split(' ').some(item => {
-        return item == 'commits'
+        return item == 'commits' || item == 'commit'
       })) { }
       else {
         Collab.push(u[y])
