@@ -37,7 +37,7 @@ async function addUser(repo) {
 }
 
 async function main(startUrl) {
-  browser = await puppeteer.launch({ headless: false });
+  browser = await puppeteer.launch({ headless: true });
   await searchRep(startUrl)
   await browser.close()
   fs.writeFileSync('struct.json', JSON.stringify(struct));
