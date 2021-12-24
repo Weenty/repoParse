@@ -37,7 +37,7 @@ async function addUser(repo) {
 }
 
 async function main(startUrl) {
-  browser = await puppeteer.launch({ headless: true });
+  browser = await puppeteer.launch({ headless: false });
   await searchRep(startUrl)
   await browser.close()
   fs.writeFileSync('struct.json', JSON.stringify(struct));
@@ -101,6 +101,11 @@ async function paintStruct(count) {
   paintStruct(count + 1)
 }
 async function tolink(url) {
+  let pages = await browser.pages()
+  for(let pp = 0; pp<pages.length; pp++)
+  {
+    pages[pp].close()
+  }
   page = await browser.newPage();
   console.log('GO TO ' + url)
   await page.goto(url, { waitUntil: "networkidle2" });
